@@ -1,0 +1,62 @@
+name: praas-agent (Bedrock)
+
+on:
+  pull_request:
+    types: [labeled]
+
+env:
+  MODEL: bedrock/amazon.nova-pro-v1:0
+  # amazon.nova-pro-v1:0 isn't in this fork's static MAX_TOKENS table, so its
+  # context window (300k tokens) has to be supplied explicitly or the run
+  # throws before calling the model.
+  CUSTOM_MODEL_MAX_TOKENS: "300000"
+
+jobs:
+  review:
+    if: github.event.label.name == 'praas-agent' && github.event.sender.type != 'Bot'
+    name: Review with praas-agent (Bedrock)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      # Build from the base branch, never from the pull request, so a PR
+      # cannot alter the image (or the submodule pointer) that runs with
+      # repository secrets and the assumed AWS role.
+      - name: Check out base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          submodules: recursive
+          # vendor/praas-test is private and lives under a different owner
+          # (IkkaLabs) than this repo; the default GITHUB_TOKEN can't read
+          # it, so a PAT with access to that repo is required here.
+          token: ${{ secrets.SUBMODULE_PAT }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Build praas-agent
+        run: docker build -t praas-agent-bedrock -f vendor/praas-test/Dockerfile.pragent vendor/praas-test
+
+      - name: Review pull request
+        run: |
+          docker run --rm \
+            -e CONFIG__GIT_PROVIDER="github" \
+            -e GITHUB__USER_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
+            -e AWS__AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS__AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS__AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS__AWS_REGION_NAME="us-east-1" \
+            -e CONFIG__MODEL="$MODEL" \
+            -e CONFIG__CUSTOM_MODEL_MAX_TOKENS="$CUSTOM_MODEL_MAX_TOKENS" \
+            -e CONFIG__FALLBACK_MODELS='[]' \
+            -e PR_REVIEWER__REQUIRE_SCORE_REVIEW="true" \
+            -e PR_REVIEWER__PERSISTENT_COMMENT="false" \
+            -e PR_REVIEWER__ENABLE_MULTI_LENS_REVIEW="true" \
+            praas-agent-bedrock \
+            --pr_url "${{ github.event.pull_request.html_url }}" review
