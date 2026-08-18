@@ -79,3 +79,4 @@ These were considered but intentionally left out of this build to keep the surfa
 
 - **Terraform remote state backend** — an S3 bucket + DynamoDB lock table for storing `.tfstate` remotely instead of locally. Currently state is local only.
 - **CloudWatch Logs write access** — the runtime IAM role does not currently have `logs:CreateLogGroup`/`CreateLogStream`/`PutLogEvents`. GitHub Actions runner logs already cover script output; this would only matter for shipping logs into CloudWatch specifically.
+test change
