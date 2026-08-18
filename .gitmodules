@@ -1,0 +1,4 @@
+[submodule "vendor/praas-test"]
+	path = vendor/praas-test
+	url = https://github.com/IkkaLabs/praas-test.git
+	branch = praas-subagents

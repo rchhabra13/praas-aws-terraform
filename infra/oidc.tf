@@ -27,7 +27,11 @@ data "aws_iam_policy_document" "gha_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.repo_full_name}:*"]
+      # GitHub now appends immutable owner/repo IDs to the subject claim
+      # (repo:owner@ownerId/repo@repoId:...) instead of the classic
+      # repo:owner/repo:... format. Wildcard-tolerate the optional @id
+      # suffix on both segments so this matches either format.
+      values = ["repo:${split("/", var.repo_full_name)[0]}*/${split("/", var.repo_full_name)[1]}*:*"]
     }
   }
 }
