@@ -10,6 +10,12 @@ env:
   # context window (300k tokens) has to be supplied explicitly or the run
   # throws before calling the model.
   CUSTOM_MODEL_MAX_TOKENS: "300000"
+  # config.max_model_tokens is a SEPARATE hard cap (defaults to 32000) that
+  # clamps the actual diff/review token budget regardless of the value
+  # above — without raising this too, large diffs get silently truncated
+  # ("Review coverage: ... not included ... because of the token budget").
+  # Kept below the 300k window to leave headroom for prompt + response.
+  MAX_MODEL_TOKENS: "200000"
 
 jobs:
   review:
@@ -54,6 +60,7 @@ jobs:
             -e AWS__AWS_REGION_NAME="us-east-1" \
             -e CONFIG__MODEL="$MODEL" \
             -e CONFIG__CUSTOM_MODEL_MAX_TOKENS="$CUSTOM_MODEL_MAX_TOKENS" \
+            -e CONFIG__MAX_MODEL_TOKENS="$MAX_MODEL_TOKENS" \
             -e CONFIG__FALLBACK_MODELS='[]' \
             -e PR_REVIEWER__REQUIRE_SCORE_REVIEW="true" \
             -e PR_REVIEWER__PERSISTENT_COMMENT="false" \
